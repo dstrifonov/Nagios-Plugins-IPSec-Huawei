@@ -1,0 +1,55 @@
+#!/bin/bash
+# Script for checking IPSec tunnels on Huawei appliance.
+#
+######################################################################
+# Nagios command definition:                                         #
+# define command{                                                    #
+#         command_name    check-hw-ipsec                             #
+#         command_line    $USER1$/check_hw_ipsec -a $ARG1$ -n $ARG2$ #
+#         }                                                          #
+######################################################################
+#
+# Parameters:
+# -a Peer IP address
+# -n Tunnel name to show
+#
+# check crontab also
+#
+# created by daniel.trifonov@softwaregroup.com
+# 2023-06-01
+#
+tunnelIP=0.0.0.0
+tunnelName=" "
+tunnelStatusNum=0
+ 
+ 
+if [ ! -f /tmp/hw-tunnels ]
+then
+    /usr/local/nagios/libexec/hw_get_tunnels
+fi
+ 
+while getopts "a:n:" option; do
+    case "${option}" in
+        a)
+            tunnelIP=${OPTARG}
+            tunnelStatusNum="$(grep $tunnelIP /tmp/hw-tunnels | grep -c "RD|")"
+            ;;
+        n)
+            tunnelName=${OPTARG}
+            ;;
+        esac
+done
+ 
+case $tunnelStatusNum in
+    0)    /usr/bin/printf "WARNING! VPN peer %s (%s) is DOWN|0\n" $tunnelIP $tunnelName
+             exit 2
+             ;;
+    [1-99]*) /usr/bin/printf "OK! VPN peer %s (%s) is UP|1\n" $tunnelIP $tunnelName
+             exit 0
+             ;;
+    *)    /usr/bin/printf "WARNING! VPN peer %s (%s) is UNKNOWN|2\n" $tunnelIP $tunnelName
+             exit 1
+             ;;
+esac
+ 
+exit 0

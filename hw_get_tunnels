@@ -1,0 +1,51 @@
+#!/bin/bash
+# This is a simple and dirty script executed by crontab.
+# It uses SSH protocol to get data from appliance.
+# It serves to pull IPSec status data from Huawei USG device.
+#
+# User nagios have to be created on the appliance and allowed to login with password.
+# Password and IP address/host-name have to be changed in the code below.
+#
+# created by daniel.trifonov@softwaregroup.com
+# 2023-06-01
+#
+#
+if [ ! -f /tmp/hw-tunnels ]
+then
+    touch /tmp/hw-tunnels
+fi
+if [ ! -f /tmp/hw-tmp ]
+then
+    touch /tmp/hw-tmp
+fi
+ 
+truncate -s0 /tmp/hw-tmp
+ 
+/usr/bin/expect -c '
+set i 1
+set timeout -1
+spawn ssh nagios@192.168.0.1
+match_max 100000
+expect -exact "Password: "
+send -- "NagiosUserPasswordHere\r"
+expect -exact "HRP_M<USG6610E-1>"
+send -- "display ike sa"
+expect -exact "display ike sa"
+send -- "\r"
+ 
+expect {
+    " ---- More ----" {
+        sleep .2
+        send -- " "
+        exp_continue
+        }
+    "HRP_M<USG6610E-1>" {
+        send -- "quit\r"
+        expect eof
+    }
+}
+' > /tmp/hw-tmp
+ 
+cp -fu /tmp/hw-tmp /tmp/hw-tunnels
+ 
+exit 0
